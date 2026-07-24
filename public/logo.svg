@@ -1,0 +1,9 @@
+<svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+  <rect width="200" height="200" fill="#ffffff"/>
+  <g transform="translate(0,0)">
+    <polygon points="100,20 95,180 180,180" fill="#141414"/>
+    <polygon points="100,20 56,108 95,180" fill="#8a8a8a"/>
+    <polygon points="56,108 20,180 95,180" fill="#3d3d3d"/>
+    <line x1="100" y1="20" x2="95" y2="180" stroke="#ffffff" stroke-width="1.5"/>
+  </g>
+</svg>

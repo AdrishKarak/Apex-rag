@@ -1,7 +1,7 @@
 import "@/styles/globals.css";
 
 import { type Metadata } from "next";
-import { Geist } from "next/font/google";
+import { Ubuntu } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import { TRPCReactProvider } from "@/trpc/react";
@@ -9,12 +9,13 @@ import { TRPCReactProvider } from "@/trpc/react";
 export const metadata: Metadata = {
   title: "Apex",
   description: "Query your Github repositories with AI",
-  icons: [{ rel: "icon", url: "/favicon.ico" }],
+  icons: [{ rel: "icon", url: "/logo.svg" }],
 };
 
-const geist = Geist({
+const ubuntu = Ubuntu({
   subsets: ["latin"],
-  variable: "--font-geist-sans",
+  weight: ["300", "400", "500", "700"],
+  variable: "--font-ubuntu",
 });
 
 export default function RootLayout({
@@ -22,8 +23,8 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={`${geist.variable}`}>
-        <body>
+      <html lang="en" className={`${ubuntu.variable}`}>
+        <body className="font-sans antialiased">
           <TRPCReactProvider>{children}</TRPCReactProvider>
         </body>
       </html>
