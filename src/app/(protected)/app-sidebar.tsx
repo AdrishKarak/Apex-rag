@@ -110,7 +110,7 @@ export function AppSidebar() {
                                     className="border border-primary/20 bg-sidebar hover:bg-sidebar-accent shadow-xs"
                                     tooltip="New Project"
                                     render={
-                                        <Link href="/create-project" className="flex items-center gap-2">
+                                        <Link href="/create" className="flex items-center gap-2">
                                             <Plus className="size-4" />
                                             <span>New Project</span>
                                         </Link>
