@@ -6,11 +6,12 @@
  * TL;DR - This is where all the tRPC server stuff is created and plugged in. The pieces you will
  * need to use are documented accordingly near the end.
  */
-import { initTRPC } from "@trpc/server";
+import { initTRPC, TRPCError } from "@trpc/server";
 import superjson from "superjson";
 import { ZodError } from "zod";
 
 import { db } from "@/server/db";
+import { auth, clerkClient } from "@clerk/nextjs/server";
 
 /**
  * 1. CONTEXT
@@ -79,14 +80,78 @@ export const createTRPCRouter = t.router;
  * You can remove this if you don't like it, but it can help catch unwanted waterfalls by simulating
  * network latency that would occur in production but not in local development.
  */
+
+const isAuthenticated = t.middleware(async ({ next, ctx }) => {
+  const user = await auth();
+  if (!user.userId) {
+    throw new TRPCError({
+      code: 'UNAUTHORIZED',
+      message: 'You are not logged in',
+    })
+  }
+
+  // Fast path: Check if user exists in local database by ID first (no Clerk API call)
+  let dbUser = await ctx.db.user.findUnique({
+    where: { id: user.userId },
+  });
+
+  if (!dbUser) {
+    // Slow path: User is missing from local DB, fetch from Clerk and sync
+    const client = await clerkClient();
+    const clerkUser = await client.users.getUser(user.userId);
+    const emailAddress = clerkUser.emailAddresses[0]?.emailAddress;
+
+    if (!emailAddress) {
+      throw new TRPCError({
+        code: 'INTERNAL_SERVER_ERROR',
+        message: 'User email not found in Clerk',
+      });
+    }
+
+    dbUser = await ctx.db.user.findUnique({
+      where: { emailAddress },
+    });
+
+    if (!dbUser) {
+      dbUser = await ctx.db.user.create({
+        data: {
+          id: user.userId,
+          emailAddress,
+          firstName: clerkUser.firstName,
+          lastName: clerkUser.lastName,
+          imageUrl: clerkUser.imageUrl,
+        },
+      });
+    } else if (dbUser.id !== user.userId) {
+      // Delete old record with mismatched ID to avoid unique constraints
+      await ctx.db.user.delete({
+        where: { id: dbUser.id },
+      });
+      dbUser = await ctx.db.user.create({
+        data: {
+          id: user.userId,
+          emailAddress,
+          firstName: clerkUser.firstName,
+          lastName: clerkUser.lastName,
+          imageUrl: clerkUser.imageUrl,
+        },
+      });
+    }
+  }
+
+  return next({
+    ctx: {
+      ...ctx,
+      user,
+      dbUser,
+    }
+  })
+})
+
+
+
 const timingMiddleware = t.middleware(async ({ next, path }) => {
   const start = Date.now();
-
-  if (t._config.isDev) {
-    // artificial delay in dev
-    const waitMs = Math.floor(Math.random() * 400) + 100;
-    await new Promise((resolve) => setTimeout(resolve, waitMs));
-  }
 
   const result = await next();
 
@@ -104,3 +169,4 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * are logged in.
  */
 export const publicProcedure = t.procedure.use(timingMiddleware);
+export const protectedProcedure = t.procedure.use(isAuthenticated)

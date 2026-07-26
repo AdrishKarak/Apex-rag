@@ -2,11 +2,13 @@
 
 import React from 'react'
 import { useUser } from '@clerk/nextjs'
+import useProject from '@/hooks/use-project'
 
 const page = () => {
     const { user } = useUser()
+    const { project } = useProject()
     return (
-        <div>{user?.firstName}</div>
+        <div>{project?.name}</div>
     )
 }
 

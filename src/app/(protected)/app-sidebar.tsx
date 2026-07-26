@@ -1,10 +1,11 @@
 'use client'
 
-import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar"
+import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import { Bot, CreditCard, LayoutDashboard, Presentation, Plus } from "lucide-react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
+import useProject from "@/hooks/use-project"
 
 const items = [
     {
@@ -29,20 +30,12 @@ const items = [
     }
 ]
 
-const projects = [
-    {
-        name: 'Project 1'
-    },
-    {
-        name: 'Nigga 2'
-    },
-    {
-        name: 'Project 3'
-    }
-]
+
 
 export function AppSidebar() {
     const pathname = usePathname()
+    const { open } = useSidebar()
+    const { projects, projectId, setProjectid } = useProject()
     return (
         <Sidebar collapsible="icon" variant="floating">
             <SidebarHeader>
@@ -85,25 +78,29 @@ export function AppSidebar() {
                         Your Projects
                     </SidebarGroupLabel>
                     <SidebarGroupContent>
-                        <SidebarMenu className="gap-1.5">
-                            {projects.map(project => {
-                                return (
-                                    <SidebarMenuItem key={project.name}>
-                                        <SidebarMenuButton
-                                            render={
-                                                <div className="flex items-center gap-2">
-                                                    <div className={cn('rounded-sm border size-6 flex items-center justify-center text-sm bg-white text-primary shrink-0',
-                                                        { 'bg-primary text-white': true }
-                                                        //project.name === project.id , we will change later
-                                                    )}>{project.name[0]}</div>
-                                                    <span className="group-data-[collapsible=icon]:hidden">{project.name}</span>
-                                                </div>
-                                            }
-                                        />
-                                    </SidebarMenuItem>
-                                )
-                            })}
-                            <div className="h-2" />
+                        <div className="max-h-52 overflow-y-auto pr-1">
+                            <SidebarMenu className="gap-1.5">
+                                {projects?.map(project => {
+                                    return (
+                                        <SidebarMenuItem key={project.id}>
+                                            <SidebarMenuButton
+                                                onClick={() => setProjectid(project.id)}
+                                                isActive={project.id === projectId}
+                                                tooltip={project.name}
+                                                render={
+                                                    <div className="flex items-center gap-2 cursor-pointer">
+                                                        <div className="rounded-sm border size-6 flex items-center justify-center text-sm bg-primary text-white shrink-0 transition-colors duration-200">{project.name[0]}</div>
+                                                        <span className="group-data-[collapsible=icon]:hidden">{project.name}</span>
+                                                    </div>
+                                                }
+                                            />
+                                        </SidebarMenuItem>
+                                    )
+                                })}
+                            </SidebarMenu>
+                        </div>
+                        <div className="h-2" />
+                        <SidebarMenu>
                             <SidebarMenuItem>
                                 <SidebarMenuButton
                                     variant="outline"

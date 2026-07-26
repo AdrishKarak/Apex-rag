@@ -5,19 +5,35 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { useForm } from 'react-hook-form'
 import { Info } from 'lucide-react'
+import { api } from '@/trpc/react'
+import { toast } from 'sonner'
+import userefetch from '@/hooks/use-refetch'
 
 type FormInput = {
     repoUrl: string
     projectName: string
-    grithubToken?: string
+    githubToken?: string
 }
 
 const CreatePage = () => {
     const { register, handleSubmit, reset } = useForm<FormInput>()
-
+    const createProject = api.project.createProject.useMutation()
+    const refetch = userefetch()
     function onSubmit(data: FormInput) {
-        window.alert(JSON.stringify(data, null, 2))
-        return true
+        createProject.mutate({
+            githubUrl: data.repoUrl,
+            name: data.projectName,
+            githubToken: data.githubToken
+        }, {
+            onSuccess: () => {
+                toast.success("Project created successfully")
+                refetch()
+                reset()
+            },
+            onError: (err) => {
+                toast.error("Failed to create project")
+            }
+        })
     }
 
     return (
@@ -78,7 +94,7 @@ const CreatePage = () => {
                         </Label>
                         <Input
                             type="password"
-                            {...register("grithubToken")}
+                            {...register("githubToken")}
                             placeholder="ghp_xxxxxxxxxxxxxxxxxxxx"
                             className="w-full h-10 px-3"
                         />
@@ -89,7 +105,7 @@ const CreatePage = () => {
                     </div>
 
                     <div className="pt-4">
-                        <Button type="submit" size="lg" className="w-full font-semibold h-10">
+                        <Button type="submit" disabled={createProject.isPending} size="lg" className="w-full font-semibold h-10">
                             Create Project
                         </Button>
                     </div>

@@ -5,6 +5,7 @@ import { Ubuntu } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import { TRPCReactProvider } from "@/trpc/react";
+import { Toaster } from "sonner";
 
 export const metadata: Metadata = {
   title: "Apex",
@@ -26,6 +27,7 @@ export default function RootLayout({
       <html lang="en" className={`${ubuntu.variable}`}>
         <body className="font-sans antialiased">
           <TRPCReactProvider>{children}</TRPCReactProvider>
+          <Toaster richColors />
         </body>
       </html>
     </ClerkProvider>
