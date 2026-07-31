@@ -6,6 +6,7 @@ import useProject from '@/hooks/use-project'
 import { FiGithub } from "react-icons/fi";
 import Link from 'next/link';
 import { ExternalLink } from 'lucide-react';
+import CommitLog from './commit-log';
 
 const page = () => {
     const { user } = useUser()
@@ -45,7 +46,7 @@ const page = () => {
             </div>
 
             <div className="mt-8"></div>
-            commitlog
+            <CommitLog />
         </div>
     )
 }

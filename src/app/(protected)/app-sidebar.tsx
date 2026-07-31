@@ -3,7 +3,7 @@
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
 import { Bot, CreditCard, LayoutDashboard, Presentation, Plus } from "lucide-react"
 import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { usePathname, useRouter } from "next/navigation"
 import { cn } from "@/lib/utils"
 import useProject from "@/hooks/use-project"
 
@@ -34,6 +34,7 @@ const items = [
 
 export function AppSidebar() {
     const pathname = usePathname()
+    const router = useRouter()
     const { open } = useSidebar()
     const { projects, projectId, setProjectid } = useProject()
     return (
@@ -84,7 +85,10 @@ export function AppSidebar() {
                                     return (
                                         <SidebarMenuItem key={project.id}>
                                             <SidebarMenuButton
-                                                onClick={() => setProjectid(project.id)}
+                                                onClick={() => {
+                                                    setProjectid(project.id)
+                                                    router.push('/dashboard')
+                                                }}
                                                 isActive={project.id === projectId}
                                                 tooltip={project.name}
                                                 render={

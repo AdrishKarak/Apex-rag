@@ -4,10 +4,12 @@ import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { useForm } from 'react-hook-form'
-import { Info } from 'lucide-react'
+import { Info, Loader2 } from 'lucide-react'
 import { api } from '@/trpc/react'
 import { toast } from 'sonner'
 import userefetch from '@/hooks/use-refetch'
+import useProject from '@/hooks/use-project'
+import { useRouter } from 'next/navigation'
 
 type FormInput = {
     repoUrl: string
@@ -19,15 +21,20 @@ const CreatePage = () => {
     const { register, handleSubmit, reset } = useForm<FormInput>()
     const createProject = api.project.createProject.useMutation()
     const refetch = userefetch()
+    const { setProjectid } = useProject()
+    const router = useRouter()
+
     function onSubmit(data: FormInput) {
         createProject.mutate({
             githubUrl: data.repoUrl,
             name: data.projectName,
             githubToken: data.githubToken
         }, {
-            onSuccess: () => {
+            onSuccess: async (project) => {
                 toast.success("Project created successfully")
-                refetch()
+                await refetch()
+                setProjectid(project.id)
+                router.push('/dashboard')
                 reset()
             },
             onError: (err) => {
@@ -105,8 +112,15 @@ const CreatePage = () => {
                     </div>
 
                     <div className="pt-4">
-                        <Button type="submit" disabled={createProject.isPending} size="lg" className="w-full font-semibold h-10">
-                            Create Project
+                        <Button type="submit" disabled={createProject.isPending} size="lg" className="w-full font-semibold h-10 flex items-center justify-center gap-2">
+                            {createProject.isPending ? (
+                                <>
+                                    <Loader2 className="size-4 animate-spin" />
+                                    Creating Project
+                                </>
+                            ) : (
+                                "Create Project"
+                            )}
                         </Button>
                     </div>
                 </form>

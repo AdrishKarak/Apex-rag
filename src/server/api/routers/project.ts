@@ -1,6 +1,7 @@
 import { RSC_ACTION_CLIENT_WRAPPER_ALIAS } from "next/dist/lib/constants";
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { z } from "zod";
+import { pollCommits } from "@/lib/github";
 
 export const projectRouter = createTRPCRouter({
     createProject: protectedProcedure.input(
@@ -21,6 +22,7 @@ export const projectRouter = createTRPCRouter({
                 }
             }
         })
+        await pollCommits(project.id);
         return project;
     }),
 
@@ -35,5 +37,25 @@ export const projectRouter = createTRPCRouter({
                 deletedAt: null
             }
         })
+    }),
+    getCommits: protectedProcedure.input(
+        z.object({
+            projectId: z.string()
+        })
+    ).query(async ({ ctx, input }) => {
+        pollCommits(input.projectId).then().catch(console.error)
+        return await ctx.db.commit.findMany({
+            where: {
+                projectId: input.projectId
+            }
+        })
+    }),
+
+    syncProject: protectedProcedure.input(
+        z.object({
+            projectId: z.string()
+        })
+    ).mutation(async ({ input }) => {
+        return await pollCommits(input.projectId);
     })
 })

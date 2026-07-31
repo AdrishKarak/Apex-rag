@@ -64,4 +64,5 @@ model Commit {
     commitAuthorName   String
     commitAuthorAvatar String
     commitDate         String
+    summary            String
 }
