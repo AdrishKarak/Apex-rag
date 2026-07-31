@@ -4,14 +4,15 @@ import { GoogleGenAI } from '@google/genai';
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 export const aisummariseCommit = async (diff: string) => {
-    const response = await ai.models.generateContent({
-        model: 'gemini-3.5-flash',
-        contents: [
-            {
-                role: 'user',
-                parts: [
-                    {
-                        text: `You are an expert programmer, and you are trying to summarize a git diff.
+    try {
+        const response = await ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        {
+                            text: `You are an expert programmer, and you are trying to summarize a git diff.
 Reminders about the git diff format:
 For every file, there are a few metadata lines, like (for example):
 \`\`\`
@@ -40,14 +41,18 @@ The last comment does not include the file names,
 because there were more than two relevant files in the hypothetical commit.
 Do not include parts of the example in your summary.
 It is given only as an example of appropriate comments.`
-                    },
-                    {
-                        text: `Please summarise the following diff file: \n\n${diff}`
-                    }
-                ]
-            }
-        ]
-    });
+                        },
+                        {
+                            text: `Please summarise the following diff file: \n\n${diff}`
+                        }
+                    ]
+                }
+            ]
+        });
 
-    return response.text ?? "";
+        return response.text ?? "";
+    } catch (error) {
+        console.error("Gemini AI summarization failed:", error);
+        return "";
+    }
 }

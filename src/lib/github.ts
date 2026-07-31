@@ -16,7 +16,8 @@ type Response = {
 }
 
 export const getCommitHashes = async (githubUrl: string): Promise<Response[]> => {
-    const parts = githubUrl.split("/");
+    const cleanUrl = githubUrl.replace(/\/+$/, "").replace(/\.git$/, "");
+    const parts = cleanUrl.split("/");
     const owner = parts[parts.length - 2];
     const repo = parts[parts.length - 1];
     if (!owner || !repo) {
@@ -43,6 +44,9 @@ export const pollCommits = async (projectId: string) => {
     const { project, githubUrl } = await fetchProjectGithubUrl(projectId)
     const commitHashes = await getCommitHashes(githubUrl)
     const unProcesssedCommits = await filterUnProcesssedCommits(projectId, commitHashes)
+    if (unProcesssedCommits.length === 0) {
+        return [];
+    }
     const summariseResponse = await Promise.allSettled(unProcesssedCommits.map(commit => {
         return summariseCommit(githubUrl, commit.commitHash);
     }))
@@ -70,12 +74,38 @@ export const pollCommits = async (projectId: string) => {
 }
 
 async function summariseCommit(githubUrl: string, commitHash: string) {
-    const { data } = await axios.get(`${githubUrl}/commit/${commitHash}.diff`, {
-        headers: {
-            Accept: 'application/vnd.github.v3.diff'
+    try {
+        const cleanUrl = githubUrl.replace(/\/+$/, "").replace(/\.git$/, "");
+        const parts = cleanUrl.split("/");
+        const owner = parts[parts.length - 2];
+        const repo = parts[parts.length - 1];
+
+        let diff = "";
+        try {
+            const response = await octokit.rest.repos.getCommit({
+                owner: owner!,
+                repo: repo!,
+                ref: commitHash,
+                headers: {
+                    accept: 'application/vnd.github.v3.diff'
+                }
+            });
+            diff = typeof response.data === 'string' ? response.data : JSON.stringify(response.data);
+        } catch {
+            const response = await axios.get(`${cleanUrl}/commit/${commitHash}.diff`, {
+                headers: {
+                    Accept: 'application/vnd.github.v3.diff',
+                    'User-Agent': 'Github-RAG'
+                }
+            });
+            diff = response.data;
         }
-    })
-    return await aisummariseCommit(data) || "";
+
+        return (await aisummariseCommit(diff)) || "";
+    } catch (err) {
+        console.error(`Failed to summarize commit ${commitHash}:`, err);
+        return "";
+    }
 }
 
 async function fetchProjectGithubUrl(projectId: string) {
