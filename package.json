@@ -21,6 +21,9 @@
     "typecheck": "bun run tsc --noEmit"
   },
   "dependencies": {
+    "@ai-sdk/google": "^4.0.31",
+    "@ai-sdk/groq": "^4.0.19",
+    "@ai-sdk/rsc": "^3.0.47",
     "@base-ui/react": "^1.6.0",
     "@clerk/nextjs": "^7.6.0",
     "@google/genai": "^2.14.0",
@@ -34,6 +37,9 @@
     "@trpc/client": "^11.0.0",
     "@trpc/react-query": "^11.0.0",
     "@trpc/server": "^11.0.0",
+    "@types/react-syntax-highlighter": "^15.5.13",
+    "@uiw/react-md-editor": "^4.1.1",
+    "ai": "^7.0.47",
     "axios": "^1.19.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
@@ -53,6 +59,7 @@
     "react-hook-form": "^7.83.0",
     "react-icons": "^5.7.0",
     "react-resizable-panels": "^4.12.2",
+    "react-syntax-highlighter": "^16.1.1",
     "recharts": "3.8.0",
     "server-only": "^0.0.1",
     "shadcn": "^4.14.0",
