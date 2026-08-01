@@ -1,11 +1,45 @@
 import { GoogleGenAI } from '@google/genai';
-
+import { Document } from '@langchain/core/documents'
 // Automatically picks up the GEMINI_API_KEY environment variable
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
+/**
+ * Robust retry wrapper with exponential backoff designed to handle Gemini API rate limits (429).
+ * Dynamically parses the required wait time (e.g. "Please retry in X.XXs") from the API error message.
+ */
+async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 10, delay = 5000): Promise<T> {
+    try {
+        return await fn();
+    } catch (error: any) {
+        const errorMsg = error?.message || (typeof error === 'object' ? JSON.stringify(error) : String(error));
+        const isRateLimit = error?.status === 429 ||
+            errorMsg.includes("RESOURCE_EXHAUSTED") ||
+            errorMsg.includes("quota");
+
+        if (retries > 0 && isRateLimit) {
+            let waitTime = delay;
+            // Extract the API's recommended retry delay dynamically (e.g. "Please retry in 29.5s")
+            const match = errorMsg.match(/Please retry in ([\d\.]+)s/);
+            if (match && match[1]) {
+                // Parse delay in seconds, convert to ms, and add a 1-second safety buffer
+                waitTime = Math.ceil(parseFloat(match[1]) * 1000) + 1000;
+            }
+
+            // Add random jitter (1 to 5 seconds) to stagger retries and prevent "thundering herd" collisions
+            const jitter = Math.random() * 4000 + 1000;
+            const totalWait = waitTime + jitter;
+
+            console.warn(`Gemini rate limit hit. Waiting ${(totalWait / 1000).toFixed(2)}s before retrying... (${retries} retries left)`);
+            await new Promise(resolve => setTimeout(resolve, totalWait));
+            return retryWithBackoff(fn, retries - 1, delay * 1.5);
+        }
+        throw error;
+    }
+}
+
 export const aisummariseCommit = async (diff: string) => {
     try {
-        const response = await ai.models.generateContent({
+        const response = await retryWithBackoff(() => ai.models.generateContent({
             model: 'gemini-2.0-flash',
             contents: [
                 {
@@ -48,11 +82,64 @@ It is given only as an example of appropriate comments.`
                     ]
                 }
             ]
-        });
+        }));
 
         return response.text ?? "";
     } catch (error) {
         console.error("Gemini AI summarization failed:", error);
         return "";
+    }
+}
+
+export async function summariseCode(doc: Document) {
+    try {
+        const code = doc.pageContent.slice(0, 10000); // Limit to 10000 characters
+        const response = await retryWithBackoff(() => ai.models.generateContent({
+            model: 'gemini-2.0-flash',
+            contents: [
+                {
+                    role: 'user',
+                    parts: [
+                        {
+                            text: `You are an intelligent senior software engineer who specialises in onboarding junior software engineers onto projects.
+You are onboarding a junior software engineer and explaining to them the purpose of the ${doc.metadata.source} file.
+Here is the code:
+---
+${code}
+---
+Give a summary no more than 100 words of the code above.`
+                        }
+                    ]
+                }
+            ]
+        }));
+
+        return response.text ?? "";
+    } catch (error) {
+        console.error("Gemini AI code summarization failed:", error);
+        return "";
+    }
+}
+
+export async function generateEmbedding(summary: string) {
+    // Avoid API crash (400) if summary text is empty
+    if (!summary || summary.trim() === "") {
+        console.warn("Skipping embedding generation: Input summary is empty.");
+        return [];
+    }
+
+    try {
+        const response = await retryWithBackoff(() => ai.models.embedContent({
+            model: "gemini-embedding-2",
+            contents: summary,
+            config: {
+                outputDimensionality: 768,
+            }
+        }));
+
+        return response.embeddings?.[0]?.values ?? [];
+    } catch (error) {
+        console.error("Gemini AI embedding generation failed:", error);
+        return [];
     }
 }

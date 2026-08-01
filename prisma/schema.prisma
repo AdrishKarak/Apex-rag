@@ -2,12 +2,14 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-    provider = "prisma-client-js"
-    output   = "../generated/prisma"
+    provider        = "prisma-client-js"
+    previewFeatures = ["postgresqlExtensions"]
+    output          = "../generated/prisma"
 }
 
 datasource db {
-    provider = "postgresql"
+    provider   = "postgresql"
+    extensions = [vector]
 }
 
 model User {
@@ -30,12 +32,15 @@ model Project {
     createdAt DateTime @default(now())
     updatedAt DateTime @updatedAt
 
-    name      String
-    githubUrl String
+    name        String
+    githubUrl   String
+    githubToken String?
+    isIndexing  Boolean @default(true)
 
-    deletedAt      DateTime?
-    userToProjects UserToProject[]
-    commits        Commit[]
+    deletedAt            DateTime?
+    userToProjects       UserToProject[]
+    commits              Commit[]
+    sourceCodeEmbeddings SourceCodeEmbeddings[]
 }
 
 model UserToProject {
@@ -49,6 +54,19 @@ model UserToProject {
     project   Project @relation(fields: [projectId], references: [id])
 
     @@unique([userId, projectId])
+}
+
+model SourceCodeEmbeddings {
+    id               String                      @id @default(cuid())
+    summaryEmbedding Unsupported("vector(768)")?
+    sourceCode       String
+    fileName         String
+    summary          String
+
+    projectId String
+    project   Project @relation(fields: [projectId], references: [id])
+
+    @@index([projectId])
 }
 
 model Commit {
@@ -65,4 +83,6 @@ model Commit {
     commitAuthorAvatar String
     commitDate         String
     summary            String
+
+    @@index([projectId])
 }

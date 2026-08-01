@@ -5,14 +5,24 @@ import { useUser } from '@clerk/nextjs'
 import useProject from '@/hooks/use-project'
 import { FiGithub } from "react-icons/fi";
 import Link from 'next/link';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Loader2 } from 'lucide-react';
 import CommitLog from './commit-log';
+import AskQuestionCard from './ask-question-card';
 
 const page = () => {
     const { user } = useUser()
     const { project } = useProject()
     return (
         <div>
+            {project?.isIndexing && (
+                <div className='flex items-center gap-3 bg-blue-500/10 border border-blue-500/20 rounded-lg px-4 py-3 mb-6 animate-pulse'>
+                    <Loader2 className='size-5 text-blue-500 animate-spin shrink-0' />
+                    <p className='text-sm text-blue-500 font-medium leading-normal'>
+                        Apex-Hub is currently indexing your repository in the background. Generating code summaries and embeddings. AI features will be active once completed. ( Max 5-10 min )
+                    </p>
+                </div>
+            )}
+
             <div className='flex items-center justify-between flex-wrap gap-y-4'>
                 {/* Linked Repo */}
                 <div className="w-fit rounded-md bg-primary px-4 py-3">
@@ -40,7 +50,7 @@ const page = () => {
 
             <div className="mt-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
-                    AskQuestionCard
+                    <AskQuestionCard />
                     MeetingCard
                 </div>
             </div>

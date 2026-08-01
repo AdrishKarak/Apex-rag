@@ -1,7 +1,7 @@
 import { db } from "@/server/db";
 import { Octokit } from "octokit";
 import axios from "axios";
-import { aisummariseCommit } from "./gemini";
+import { summariseCommit as groqSummariseCommit } from "./groq";
 
 export const octokit = new Octokit({
     auth: process.env.GITHUB_TOKEN
@@ -48,7 +48,7 @@ export const pollCommits = async (projectId: string) => {
         return [];
     }
     const summariseResponse = await Promise.allSettled(unProcesssedCommits.map(commit => {
-        return summariseCommit(githubUrl, commit.commitHash);
+        return getAndSummariseCommit(githubUrl, commit.commitHash);
     }))
     const summaries = summariseResponse.map((response) => {
         if (response.status === 'fulfilled') {
@@ -73,7 +73,7 @@ export const pollCommits = async (projectId: string) => {
     return commits;
 }
 
-async function summariseCommit(githubUrl: string, commitHash: string) {
+async function getAndSummariseCommit(githubUrl: string, commitHash: string) {
     try {
         const cleanUrl = githubUrl.replace(/\/+$/, "").replace(/\.git$/, "");
         const parts = cleanUrl.split("/");
@@ -101,7 +101,7 @@ async function summariseCommit(githubUrl: string, commitHash: string) {
             diff = response.data;
         }
 
-        return (await aisummariseCommit(diff)) || "";
+        return (await groqSummariseCommit(diff)) || "";
     } catch (err) {
         console.error(`Failed to summarize commit ${commitHash}:`, err);
         return "";

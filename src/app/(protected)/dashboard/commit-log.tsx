@@ -21,17 +21,19 @@ const CommitLog = () => {
         { projectId: projectId ?? "" },
         { enabled: !!projectId }
     );
+    const utils = api.useUtils();
     const syncProject = api.project.syncProject.useMutation();
 
     const handleSync = () => {
         if (!projectId) return;
         syncProject.mutate({ projectId }, {
             onSuccess: () => {
-                toast.success("Commits synced successfully")
-                refetch()
+                toast.success("Repository sync started in background");
+                refetch();
+                utils.project.getProjects.invalidate();
             },
             onError: (err) => {
-                toast.error("Failed to sync commits: " + (err.message || "Unknown error"))
+                toast.error("Failed to sync repository: " + (err.message || "Unknown error"));
             }
         })
     }
@@ -48,7 +50,7 @@ const CommitLog = () => {
                     className="gap-2"
                 >
                     <RefreshCw className={cn("size-4", syncProject.isPending && "animate-spin")} />
-                    {syncProject.isPending ? "Syncing..." : "Sync Commits"}
+                    {syncProject.isPending ? "Syncing..." : "Sync Repo"}
                 </Button>
             </div>
 
