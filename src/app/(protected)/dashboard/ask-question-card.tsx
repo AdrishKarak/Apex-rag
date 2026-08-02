@@ -46,6 +46,7 @@ const AskQuestionCard = () => {
     const [filesReferences, setFilesReferences] = React.useState<{ fileName: string; sourceCode: string; summary: string; }[] | null>(null);
     const [answer, setAnswer] = React.useState("");
     const [hasSaved, setHasSaved] = React.useState(false);
+    const refetch = api.useUtils();
     const saveAnswer = api.project.saveAnswer.useMutation();
 
     const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
@@ -87,6 +88,7 @@ const AskQuestionCard = () => {
             onSuccess: () => {
                 toast.success("Answer saved successfully!");
                 setHasSaved(true);
+                refetch.project.getQuestions.invalidate();
             },
             onError: (err) => {
                 toast.error("Failed to save answer: " + err.message);

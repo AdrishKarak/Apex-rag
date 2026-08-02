@@ -16,15 +16,24 @@ export async function askQuestion(question: string, projectId: string) {
     const queryVector = await generateEmbedding(question)
     const vectorQuery = `[${queryVector.join(",")}]`
 
-    const result = await db.$queryRaw`
+    const rawResult = await db.$queryRaw`
     SELECT "fileName" , "sourceCode" , "summary",
     1 - ("summaryEmbedding" <=> ${vectorQuery}::vector) AS similarity
     FROM "SourceCodeEmbeddings"
-    WHERE 1 - ("summaryEmbedding" <=> ${vectorQuery}::vector) > 0.5
+    WHERE 1 - ("summaryEmbedding" <=> ${vectorQuery}::vector) > 0.55
     AND "projectId" = ${projectId}
     ORDER BY similarity DESC
     LIMIT 7
     ` as { fileName: string, sourceCode: string, summary: string, similarity: number }[]
+
+    // Dynamically filter results so only necessary/relevant files are kept.
+    // Filter out filler files whose similarity drops significantly relative to the top match.
+    let result = rawResult;
+    if (rawResult.length > 0 && rawResult[0]) {
+        const topSimilarity = rawResult[0].similarity;
+        const relativeThreshold = Math.max(0.55, topSimilarity - 0.12);
+        result = rawResult.filter(doc => doc.similarity >= relativeThreshold);
+    }
 
     let context = ''
     for (const doc of result) {

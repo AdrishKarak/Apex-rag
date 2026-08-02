@@ -102,17 +102,71 @@ export const indexGithubRepo = async (projectId: string, githubUrl: string, gith
     // Filter out asset, stylesheet, and documentation files to optimize indexing speed
     const filteredDocs = docs.filter(doc => !isExcludeFile(doc.metadata.source || ''));
 
-    // 2. Generate summaries and vector embeddings for all filtered code files
-    const allEmbeddings = await generateEmbeddings(filteredDocs);
-
-    // 3. Clear old database records for the project to support re-indexing clean updates
-    await db.sourceCodeEmbeddings.deleteMany({
-        where: { projectId }
+    // 2. Fetch existing embeddings from database for incremental sync check
+    const existingEmbeddings = await db.sourceCodeEmbeddings.findMany({
+        where: { projectId },
+        select: { id: true, fileName: true, sourceCode: true }
     });
 
-    // 4. Batch insert new records concurrently, capped at 4 writes at a time to prevent DB pool timeouts
-    await limitConcurrency(allEmbeddings, 4, async (embedding, index) => {
-        console.log(`Saving document ${index + 1} of ${allEmbeddings.length} to database`);
+    const existingMap = new Map(existingEmbeddings.map(e => [e.fileName, e.sourceCode]));
+    const currentFileNameSet = new Set(filteredDocs.map(doc => doc.metadata.source || ''));
+
+    // 3. Separate files into unchanged vs modified/new
+    const docsToProcess: Document[] = [];
+    let unchangedCount = 0;
+
+    for (const doc of filteredDocs) {
+        const fileName = doc.metadata.source || '';
+        const existingSourceCode = existingMap.get(fileName);
+        const currentSourceCode = JSON.parse(JSON.stringify(doc.pageContent));
+
+        if (existingSourceCode !== undefined && existingSourceCode === currentSourceCode) {
+            unchangedCount++;
+        } else {
+            docsToProcess.push(doc);
+        }
+    }
+
+    console.log(`[Incremental Indexing] Total files: ${filteredDocs.length} | Unchanged: ${unchangedCount} | Modified/New: ${docsToProcess.length}`);
+
+    // 4. Remove embeddings for files that were deleted from the repository
+    const deletedFileNames = existingEmbeddings
+        .map(e => e.fileName)
+        .filter(fileName => !currentFileNameSet.has(fileName));
+
+    if (deletedFileNames.length > 0) {
+        console.log(`[Incremental Indexing] Removing ${deletedFileNames.length} deleted file(s) from database`);
+        await db.sourceCodeEmbeddings.deleteMany({
+            where: {
+                projectId,
+                fileName: { in: deletedFileNames }
+            }
+        });
+    }
+
+    // 5. If no modified or new files, indexing is complete!
+    if (docsToProcess.length === 0) {
+        console.log(`[Incremental Indexing] Repository is fully up-to-date! Skipping LLM & Embedding API calls.`);
+        return;
+    }
+
+    // 6. Generate summaries & vector embeddings ONLY for new/modified files
+    const newEmbeddings = await generateEmbeddings(docsToProcess);
+
+    // 7. Delete existing DB records for modified files before re-inserting updated versions
+    const modifiedFileNames = newEmbeddings.map(e => e.fileName);
+    if (modifiedFileNames.length > 0) {
+        await db.sourceCodeEmbeddings.deleteMany({
+            where: {
+                projectId,
+                fileName: { in: modifiedFileNames }
+            }
+        });
+    }
+
+    // 8. Batch insert newly processed embeddings into database
+    await limitConcurrency(newEmbeddings, 4, async (embedding, index) => {
+        console.log(`Saving document ${index + 1} of ${newEmbeddings.length} to database`);
 
         if (!embedding) return;
 
