@@ -8,6 +8,7 @@ import Link from 'next/link';
 import { ExternalLink, Loader2 } from 'lucide-react';
 import CommitLog from './commit-log';
 import AskQuestionCard from './ask-question-card';
+import MeetingCard from './meeting-card';
 
 const page = () => {
     const { user } = useUser()
@@ -51,7 +52,7 @@ const page = () => {
             <div className="mt-4">
                 <div className="grid grid-cols-1 gap-4 sm:grid-cols-5">
                     <AskQuestionCard />
-                    MeetingCard
+                    <MeetingCard />
                 </div>
             </div>
 

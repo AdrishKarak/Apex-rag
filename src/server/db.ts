@@ -17,6 +17,11 @@ const globalForPrisma = globalThis as unknown as {
   prisma: ReturnType<typeof createPrismaClient> | undefined;
 };
 
+// Reset cached instance in development if schema changes
+if (process.env.NODE_ENV !== "production") {
+  globalForPrisma.prisma = undefined;
+}
+
 export const db = globalForPrisma.prisma ?? createPrismaClient();
 
 if (env.NODE_ENV !== "production") globalForPrisma.prisma = db;

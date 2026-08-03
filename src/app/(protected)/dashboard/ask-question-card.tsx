@@ -202,7 +202,7 @@ const AskQuestionCard = () => {
 
             <Card className="relative col-span-3 overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-xs">
                 {/* Visual Accent top border */}
-                <div className="absolute top-0 inset-x-0 h-[2px] bg-zinc-200 dark:bg-zinc-800" />
+                <div className="absolute top-0 inset-x-0 h-0.5 bg-zinc-200 dark:bg-zinc-800" />
                 <CardHeader className="pb-3">
                     <CardTitle className="text-lg font-semibold tracking-tight flex items-center gap-2">
                         <Sparkles className="size-4.5 text-zinc-500 dark:text-zinc-400 animate-pulse" />
