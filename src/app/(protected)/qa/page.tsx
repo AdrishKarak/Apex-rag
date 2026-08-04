@@ -1,3 +1,21 @@
+/**
+ * @file src/app/(protected)/qa/page.tsx
+ * @description Saved QA timeline manager page.
+ * 
+ * WHY IT'S NEEDED:
+ * Houses lists of indexed question-answer history threads that developers have pinned to the workspace context.
+ * 
+ * FLOW OF EXECUTION:
+ * 1. Resolves `projectId` from `useProject`.
+ * 2. Fetches QA query array from `getQuestions`.
+ * 3. Keeps track of the selected question index state (`questionIndex`).
+ * 4. Resolves the active layout theme (`resolvedTheme`) to render styling for code previews dynamically.
+ * 
+ * CONNECTIONS:
+ * - Invokes tRPC query `getQuestions` in `src/server/api/routers/project.ts`.
+ * - Employs sub-components: `AskQuestionCard` and `CodeReferences`.
+ */
+
 'use client'
 
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet'
@@ -12,6 +30,7 @@ import { useTheme } from 'next-themes'
 
 import "@uiw/react-markdown-preview/markdown.css";
 
+// Dynamically import MarkdownPreview to disable SSR and render client-side only
 const MarkdownPreview = dynamic(() => import("@uiw/react-markdown-preview"), {
     ssr: false,
     loading: () => (
@@ -25,10 +44,14 @@ const MarkdownPreview = dynamic(() => import("@uiw/react-markdown-preview"), {
 
 const QAPage = () => {
     const { projectId } = useProject()
+    // Fetch all logged Q&As for the project
     const { data: questions } = api.project.getQuestions.useQuery({ projectId })
+    // Selected query card index reference
     const [questionIndex, setQuestionIndex] = React.useState(0)
     const question = questions?.[questionIndex]
+    // Theme resolution context
     const { resolvedTheme } = useTheme()
+
 
     return (
         <Sheet>

@@ -1,3 +1,28 @@
+/**
+ * @file src/server/api/routers/project.ts
+ * @description tRPC Router managing project setups, code syncing, saved questions, and meeting transcription triggers.
+ * 
+ * WHY IT'S NEEDED:
+ * Controls the orchestrations of linking GitHub repositories, charging user credits, triggering background indexing,
+ * storing Q&A threads, and processing meeting transcripts.
+ * 
+ * FLOW OF EXECUTION:
+ * 1. `createProject(name, githubUrl)`:
+ *    - Deducts 150 credits from the creator.
+ *    - Creates the project record linked to the creator.
+ *    - Sets `isIndexing: true`.
+ *    - Synchronously polls the last 10 commits.
+ *    - Starts background codebase indexing.
+ * 2. `getProjects`: Queries user projects. Returns cached data if retrieved in the last 30s.
+ * 3. `syncProject`: Deducts 15 credits, polls commits, and indexes repository updates asynchronously.
+ * 4. `uploadMeeting`: Deducts 100 credits, creates a meeting record with status "PROCESSING", and triggers the AssemblyAI pipeline.
+ * 5. `deleteProject`: Restricts execution to creators, and runs a cascading transaction deleting issues, meetings, commits, and vector index records.
+ * 
+ * CONNECTIONS:
+ * - Invoked by client dashboard, QA, billing, and meeting components.
+ * - Triggers background routines in `src/lib/github-loaders.ts`, `src/lib/github.ts`, and `src/lib/assembly.ts`.
+ */
+
 import { createTRPCRouter, protectedProcedure } from "../trpc";
 import { z } from "zod";
 import { TRPCError } from "@trpc/server";
@@ -7,6 +32,10 @@ import { processMeeting } from "@/lib/assembly";
 import { serverCache } from "@/lib/cache";
 
 export const projectRouter = createTRPCRouter({
+    /**
+     * Protected mutation to create a project.
+     * Deducts 150 credits and initializes background indexing.
+     */
     createProject: protectedProcedure.input(
         z.object({
             name: z.string().trim().min(1, "Project name is required").max(100, "Project name too long"),
@@ -45,6 +74,7 @@ export const projectRouter = createTRPCRouter({
         // Invalidate project list cache for this user
         serverCache.invalidate(`projects:user:${ctx.user.userId}`);
 
+        // Sync initial commit logs
         await pollCommits(project.id);
 
         // Run repository indexing in the background so the project dashboard loads instantly.
@@ -69,6 +99,9 @@ export const projectRouter = createTRPCRouter({
         return project;
     }),
 
+    /**
+     * Protected query returning all active projects for the user. Cached for 30s.
+     */
     getProjects: protectedProcedure.query(async ({ ctx }) => {
         const cacheKey = `projects:user:${ctx.user.userId}`;
         const cached = serverCache.get<any[]>(cacheKey);
@@ -99,6 +132,9 @@ export const projectRouter = createTRPCRouter({
         return projects;
     }),
 
+    /**
+     * Protected query returning indexed commits.
+     */
     getCommits: protectedProcedure.input(
         z.object({
             projectId: z.string().trim().min(1)
@@ -114,6 +150,10 @@ export const projectRouter = createTRPCRouter({
         });
     }),
 
+    /**
+     * Protected mutation to pull updates and re-index the workspace.
+     * Deducts 15 credits.
+     */
     syncProject: protectedProcedure.input(
         z.object({
             projectId: z.string().trim().min(1)
@@ -175,6 +215,9 @@ export const projectRouter = createTRPCRouter({
         return { success: true };
     }),
 
+    /**
+     * Protected mutation to log QA threads.
+     */
     saveAnswer: protectedProcedure.input(
         z.object({
             projectId: z.string().trim().min(1),
@@ -204,6 +247,9 @@ export const projectRouter = createTRPCRouter({
         });
     }),
 
+    /**
+     * Protected query returning indexed QA histories.
+     */
     getQuestions: protectedProcedure.input(
         z.object({
             projectId: z.string().trim().min(1)
@@ -220,6 +266,10 @@ export const projectRouter = createTRPCRouter({
         });
     }),
 
+    /**
+     * Protected mutation to upload and index audio recordings.
+     * Deducts 100 credits and registers background transcription.
+     */
     uploadMeeting: protectedProcedure.input(
         z.object({
             projectId: z.string().trim().min(1),
@@ -262,6 +312,9 @@ export const projectRouter = createTRPCRouter({
         return meeting;
     }),
 
+    /**
+     * Protected query returning all meeting timelines in a project.
+     */
     getMeetings: protectedProcedure.input(
         z.object({
             projectId: z.string().trim().min(1)
@@ -280,6 +333,9 @@ export const projectRouter = createTRPCRouter({
         });
     }),
 
+    /**
+     * Protected query returning meeting details.
+     */
     getMeetingById: protectedProcedure.input(
         z.object({
             meetingId: z.string().trim().min(1)
@@ -299,6 +355,9 @@ export const projectRouter = createTRPCRouter({
         });
     }),
 
+    /**
+     * Protected query returning project members. Cached for 60s.
+     */
     getTeamMembers: protectedProcedure.input(
         z.object({
             projectId: z.string().trim().min(1)
@@ -324,6 +383,9 @@ export const projectRouter = createTRPCRouter({
         return members;
     }),
 
+    /**
+     * Protected query resolving invite codes. Cached for 5m.
+     */
     getProjectByInviteCode: protectedProcedure.input(
         z.object({
             inviteCode: z.string().trim().min(1)
@@ -346,6 +408,9 @@ export const projectRouter = createTRPCRouter({
         return project;
     }),
 
+    /**
+     * Protected mutation mapping user joins.
+     */
     joinProject: protectedProcedure.input(
         z.object({
             inviteCode: z.string().trim().min(1)
@@ -384,6 +449,9 @@ export const projectRouter = createTRPCRouter({
         return project;
     }),
 
+    /**
+     * Protected mutation mapping user leaves.
+     */
     leaveProject: protectedProcedure.input(
         z.object({
             projectId: z.string().trim().min(1)
@@ -419,6 +487,10 @@ export const projectRouter = createTRPCRouter({
         return { success: true };
     }),
 
+    /**
+     * Protected mutation performing cascading deletions of project data.
+     * Restricts execution to creators.
+     */
     deleteProject: protectedProcedure.input(
         z.object({
             projectId: z.string().trim().min(1)

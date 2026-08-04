@@ -1,11 +1,32 @@
+/**
+ * @file src/lib/gemini.ts
+ * @description Integrates Google Gemini API for commit summaries, file onboarding explanations, and vector embeddings.
+ * 
+ * WHY IT'S NEEDED:
+ * Standardizes AI features like indexing codebase vectors (used in RAG Q&A) and generating text descriptions of changes.
+ * 
+ * FLOW OF EXECUTION:
+ * 1. `retryWithBackoff(fn)`: A wrapper around Gemini calls. If it encounters a 429 rate limit (RESOURCE_EXHAUSTED),
+ *    it parses the wait duration from the API error message, applies a random jitter buffer, and retries.
+ * 2. `aisummariseCommit(diff)`: Sends a code diff block to `gemini-2.0-flash` to get a structured bulleted summary.
+ * 3. `summariseCode(doc)`: Summarizes source files to under 100 words in an onboarding tone.
+ * 4. `generateEmbedding(summary)`: Translates text into a 768-dimensional float array using `gemini-embedding-2`.
+ * 
+ * CONNECTIONS:
+ * - `generateEmbedding` is imported by `src/app/(protected)/dashboard/action.ts` to vectorize user questions.
+ * - Used during repository indexing (`src/lib/github-loaders.ts`) and commit parsing (`src/lib/github.ts`).
+ */
+
 import { GoogleGenAI } from '@google/genai';
-import { Document } from '@langchain/core/documents'
-// Automatically picks up the GEMINI_API_KEY environment variable
+import { Document } from '@langchain/core/documents';
+
+// Instantiate GoogleGenAI SDK (will read standard GEMINI_API_KEY environment variable)
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
 
 /**
  * Robust retry wrapper with exponential backoff designed to handle Gemini API rate limits (429).
  * Dynamically parses the required wait time (e.g. "Please retry in X.XXs") from the API error message.
+ * Also introduces random jitter to stager parallel query limits.
  */
 async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 10, delay = 5000): Promise<T> {
     try {
@@ -37,6 +58,11 @@ async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 10, delay = 5
     }
 }
 
+/**
+ * Summarizes a git diff using the gemini-2.0-flash model.
+ * Gives structured bullet points with changed file references.
+ * @param diff The raw git diff output string
+ */
 export const aisummariseCommit = async (diff: string) => {
     try {
         const response = await retryWithBackoff(() => ai.models.generateContent({
@@ -91,6 +117,11 @@ It is given only as an example of appropriate comments.`
     }
 }
 
+/**
+ * Creates a brief, junior-developer onboarding summary of code files using gemini-2.0-flash.
+ * Limited to 10,000 characters of input code to stay within limits.
+ * @param doc LangChain Document containing the source code and file metadata.
+ */
 export async function summariseCodeGemini(doc: Document): Promise<string> {
     try {
         const code = doc.pageContent.slice(0, 10000); // Limit to 10000 characters
@@ -121,8 +152,13 @@ Give a summary no more than 100 words of the code above.`
     }
 }
 
+// Alias export for consistency with Groq loader integration
 export const summariseCode = summariseCodeGemini;
 
+/**
+ * Generates a 768-dimensional float embedding vector of a text string.
+ * @param summary String context (e.g. codebase summaries or user Q&A queries)
+ */
 export async function generateEmbedding(summary: string) {
     // Avoid API crash (400) if summary text is empty
     if (!summary || summary.trim() === "") {

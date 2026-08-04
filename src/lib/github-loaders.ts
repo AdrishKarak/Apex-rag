@@ -1,3 +1,31 @@
+/**
+ * @file src/lib/github-loaders.ts
+ * @description Codebase ingestion engine that retrieves, filters, processes, vectors, and syncs GitHub repositories.
+ * 
+ * WHY IT'S NEEDED:
+ * Converts raw source code files from GitHub repositories into vector embeddings so that the semantic RAG search
+ * engine can read and answer questions based on the files' content.
+ * 
+ * FLOW OF EXECUTION:
+ * 1. `loadGithubRepo`: Hits the GitHub API via LangChain to clone files and directories recursively.
+ * 2. `indexGithubRepo`:
+ *    - Queries existing file hashes/embeddings in the database to see what has changed (Incremental Sync).
+ *    - Automatically deletes records for files that have been deleted in GitHub.
+ *    - Extracts a list of new or modified files.
+ *    - Calls `generateEmbeddings` on the new/modified list.
+ *    - Prepares the vector representations.
+ *    - Inserts the new summaries and vector float strings into PostgreSQL.
+ * 3. `generateEmbeddings` (Dual-Provider Pipeline):
+ *    - Allocates 2 Groq workers and 1 Gemini worker to process documents concurrently.
+ *    - Claims files from a single shared index cursor.
+ *    - If one API fails, the worker falls back to the alternate API.
+ *    - Returns structured output arrays containing code, summary, and vectors.
+ * 
+ * CONNECTIONS:
+ * - Triggered by project routers (`src/server/api/routers/project.ts`) during creation and manual workspace synchronization.
+ * - Saves vector arrays used directly by the query search server action (`src/app/(protected)/dashboard/action.ts`).
+ */
+
 import { GithubRepoLoader } from "@langchain/community/document_loaders/web/github";
 import { Document } from '@langchain/core/documents';
 import { generateEmbedding, summariseCodeGemini } from "./gemini";
@@ -67,6 +95,10 @@ export const loadGithubRepo = async (githubUrl: string, githubToken?: string) =>
     return docs;
 }
 
+/**
+ * Utility to identify non-code files (images, binaries, styles, document files) so we can exclude
+ * them from token calculations and save API billing costs.
+ */
 const isExcludeFile = (fileName: string): boolean => {
     const excludedExtensions = [
         '.png', '.jpg', '.jpeg', '.gif', '.svg', '.ico', // Images
@@ -120,6 +152,7 @@ export const indexGithubRepo = async (projectId: string, githubUrl: string, gith
         const existingSourceCode = existingMap.get(fileName);
         const currentSourceCode = JSON.parse(JSON.stringify(doc.pageContent));
 
+        // If contents match exactly, do not waste API tokens recalculating summaries/embeddings
         if (existingSourceCode !== undefined && existingSourceCode === currentSourceCode) {
             unchangedCount++;
         } else {

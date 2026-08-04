@@ -1,3 +1,21 @@
+/**
+ * @file src/app/(protected)/app-sidebar.tsx
+ * @description Sidebar navigation container linking routes and project workspace directories.
+ * 
+ * WHY IT'S NEEDED:
+ * Allows developers to jump between layout sections (dashboard, QA, meetings, billing)
+ * and manage active projects, containing creator delete triggers.
+ * 
+ * FLOW OF EXECUTION:
+ * 1. Loads projects from `useProject()`.
+ * 2. `deleteProject` Mutation: Triggered when the creator clicks delete.
+ *    - Invalidates lists inside `getProjects`.
+ *    - Checks if the deleted project matches the active project ID. If true, redirects to remaining projects or the project creation page.
+ * 
+ * CONNECTIONS:
+ * - Invokes tRPC mutation `deleteProject` in `src/server/api/routers/project.ts`.
+ */
+
 'use client'
 
 import { Sidebar, SidebarContent, SidebarGroup, SidebarGroupContent, SidebarGroupLabel, SidebarHeader, SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar"
@@ -45,18 +63,19 @@ const items = [
     }
 ]
 
-
-
 export function AppSidebar() {
     const pathname = usePathname()
     const router = useRouter()
     const { open } = useSidebar()
+    // Load projects list and selected ID hooks
     const { projects, projectId, setProjectid } = useProject()
     const utils = api.useUtils()
 
+    // Dialog state targets for deletions
     const [deleteDialogOpen, setDeleteDialogOpen] = React.useState(false)
     const [projectToDelete, setProjectToDelete] = React.useState<{ id: string; name: string } | null>(null)
 
+    // Mutation linking deletions triggers to tRPC project.deleteProject
     const deleteProject = api.project.deleteProject.useMutation({
         onSuccess: () => {
             toast.success(`Project "${projectToDelete?.name}" has been permanently deleted.`)
@@ -85,17 +104,24 @@ export function AppSidebar() {
         }
     })
 
+    /**
+     * Triggers the deletion warning dialog window.
+     */
     const handleDeleteClick = (e: React.MouseEvent, project: { id: string; name: string }) => {
         e.stopPropagation()
         setProjectToDelete(project)
         setDeleteDialogOpen(true)
     }
 
+    /**
+     * Dispatches the delete project mutation to the backend API.
+     */
     const confirmDelete = () => {
         if (projectToDelete) {
             deleteProject.mutate({ projectId: projectToDelete.id })
         }
     }
+
 
     return (
         <>

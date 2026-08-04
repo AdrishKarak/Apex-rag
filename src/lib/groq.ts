@@ -1,3 +1,21 @@
+/**
+ * @file src/lib/groq.ts
+ * @description Inbound API connector to Groq's high-speed inference engine using LLaMA models.
+ * 
+ * WHY IT'S NEEDED:
+ * Provides an alternative LLM pipeline to process file summaries and commit changes, bypassing Gemini limits.
+ * 
+ * FLOW OF EXECUTION:
+ * 1. `callGroqChat(messages, model)`: Sends native HTTP fetch requests to Groq's API with deterministic parameters (temp 0.1).
+ * 2. `retryWithBackoff(fn)`: Retries dynamically upon hitting a 429 status or parsing wait times from Groq exception messages.
+ * 3. `summariseCodeGroq(doc)`: Summarizes source code using `llama-3.1-8b-instant` limited to 5k characters.
+ * 4. `summariseCommit(diff)`: Summarizes git diff modifications using LLaMA systems prompts.
+ * 
+ * CONNECTIONS:
+ * - Executed by the repository indexing pipeline in `src/lib/github-loaders.ts`.
+ * - Commits are summarized via `summariseCommit` in `src/lib/github.ts`.
+ */
+
 import { Document } from '@langchain/core/documents';
 
 /**
@@ -68,6 +86,7 @@ async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 10, delay = 2
 
 /**
  * Summarize a file's code content for onboarding description context using Groq.
+ * @param doc LangChain Document representing a source code file.
  */
 export async function summariseCodeGroq(doc: Document): Promise<string> {
     try {
@@ -92,10 +111,12 @@ export async function summariseCodeGroq(doc: Document): Promise<string> {
     }
 }
 
+// Default export alias
 export const summariseCode = summariseCodeGroq;
 
 /**
  * Summarize a git diff commit message for log history using Groq.
+ * @param diff The raw git diff output string
  */
 export async function summariseCommit(diff: string): Promise<string> {
     try {
@@ -143,3 +164,4 @@ Do not include parts of the example in your summary. It is given only as an exam
         return "";
     }
 }
+

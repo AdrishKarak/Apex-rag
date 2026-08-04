@@ -1,3 +1,19 @@
+/**
+ * @file src/app/(protected)/billing/page.tsx
+ * @description Page managing token accounting and purchases.
+ * 
+ * WHY IT'S NEEDED:
+ * Visualizes user balances, costs, and allows mock credit purchases up to 1000 tokens per hour.
+ * 
+ * FLOW OF EXECUTION:
+ * 1. `getMyCredits` Query: Fetches credit details and rolling transaction histories.
+ * 2. `buyCredits` Mutation: Adds credits to the account and invalidates cache keys.
+ * 3. `handleBuy(amount)`: Rejects inputs if outside bounds (100–1,000).
+ * 
+ * CONNECTIONS:
+ * - Invokes tRPC query `getMyCredits` and mutation `buyCredits` in `src/server/api/routers/user.ts`.
+ */
+
 'use client'
 
 import React, { useState } from 'react'
@@ -86,10 +102,13 @@ const SERVICE_COSTS = [
 
 export default function BillingPage() {
     const utils = api.useUtils()
+    // Local state for custom purchase numbers
     const [customAmount, setCustomAmount] = useState<number>(250)
 
+    // Query active credit amounts and transaction logs
     const { data: creditData, isLoading } = api.user.getMyCredits.useQuery()
 
+    // Mutation linking purchase requests to backend update services
     const buyCredits = api.user.buyCredits.useMutation({
         onSuccess: (data, variables) => {
             toast.success(`Added ${variables.amount} tokens to your account!`)
@@ -100,6 +119,10 @@ export default function BillingPage() {
         }
     })
 
+    /**
+     * Top up button event trigger.
+     * @param amount Selected transaction sum
+     */
     const handleBuy = (amount: number) => {
         if (amount < 100 || amount > 1000) {
             toast.error('Token purchases must be between 100 and 1,000 tokens.')
@@ -115,6 +138,7 @@ export default function BillingPage() {
     const nextResetInSeconds = creditData?.nextResetInSeconds ?? 0
 
     const resetMinutes = Math.ceil(nextResetInSeconds / 60)
+
 
     return (
         <div className="max-w-4xl mx-auto space-y-6 pb-10">

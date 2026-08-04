@@ -1,3 +1,15 @@
+/**
+ * @file src/app/(protected)/layout.tsx
+ * @description Layout page shell wrapping all private authenticated pages.
+ * 
+ * WHY IT'S NEEDED:
+ * Instantiates global SidebarProviders and renders shared headers (Search, CreditBadge, User profile buttons).
+ * 
+ * CONNECTIONS:
+ * - Wraps pages like dashboard, meetings, QA, and settings.
+ * - Bridges sidebar components (`src/app/(protected)/app-sidebar.tsx`) and header badges.
+ */
+
 import { SidebarProvider, SidebarTrigger } from "@/components/ui/sidebar";
 import { UserButton } from "@clerk/nextjs";
 import React from "react";
@@ -8,6 +20,7 @@ import { ProjectSearch } from "@/components/project-search";
 type Props = {
     children: React.ReactNode
 }
+
 
 const layout = ({ children }: Props) => {
     return (

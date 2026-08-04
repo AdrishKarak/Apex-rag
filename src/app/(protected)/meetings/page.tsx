@@ -1,3 +1,22 @@
+/**
+ * @file src/app/(protected)/meetings/page.tsx
+ * @description Page component displaying meetings and managing detail overlays.
+ * 
+ * WHY IT'S NEEDED:
+ * Lists transcript summaries and triggers polling loops when audio files are undergoing processing.
+ * 
+ * FLOW OF EXECUTION:
+ * 1. Fetches projects using `useProject` context.
+ * 2. `getMeetings` Query: Monitors meeting statuses.
+ *    - Custom `refetchInterval`: Checks statuses every 4 seconds if any meeting is 'PROCESSING'.
+ *    - Pauses polling once all records transition to 'COMPLETED'.
+ * 3. `handleMeetingClick`: Opens detailed summaries inside overlays for completed records.
+ * 
+ * CONNECTIONS:
+ * - Invokes tRPC query `getMeetings` in `src/server/api/routers/project.ts`.
+ * - Imports UI modals in `src/app/(protected)/meetings/meeting-detail-modal.tsx`.
+ */
+
 'use client'
 
 import useProject from '@/hooks/use-project'
@@ -19,6 +38,9 @@ import MeetingDetailModal from './meeting-detail-modal'
 
 const MeetingsPage = () => {
     const { projectId } = useProject()
+    
+    // Query list of project meetings.
+    // Automatically poll every 4 seconds if at least one entry has 'PROCESSING' status.
     const { data: meetings, isLoading } = api.project.getMeetings.useQuery(
         { projectId },
         {
@@ -30,15 +52,21 @@ const MeetingsPage = () => {
         }
     )
 
+    // Tracks selected meeting metadata object for display in modal
     const [selectedMeeting, setSelectedMeeting] = React.useState<(typeof meetings extends (infer T)[] | undefined ? T : never) | null>(null)
+    // Controls modal window open state
     const [modalOpen, setModalOpen] = React.useState(false)
 
+    /**
+     * Click handler that triggers detailed modal insights overlays for completed recordings.
+     */
     const handleMeetingClick = (meeting: NonNullable<typeof meetings>[number]) => {
         if (meeting.status === 'COMPLETED') {
             setSelectedMeeting(meeting)
             setModalOpen(true)
         }
     }
+
 
     return (
         <>

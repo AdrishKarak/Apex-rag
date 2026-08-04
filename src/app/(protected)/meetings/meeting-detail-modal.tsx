@@ -1,3 +1,18 @@
+/**
+ * @file src/app/(protected)/meetings/meeting-detail-modal.tsx
+ * @description Dialog modal overlay displaying transcripts segments (Issues).
+ * 
+ * WHY IT'S NEEDED:
+ * Visualizes the transcribed segments, timeline intervals, and summaries of a completed meeting.
+ * 
+ * FLOW OF EXECUTION:
+ * 1. Checks if `meeting` props exists. Returns null if empty.
+ * 2. Renders a modal dialog mapping `meeting.issues` containing timeline headlines and summaries.
+ * 
+ * CONNECTIONS:
+ * - Loaded by `src/app/(protected)/meetings/page.tsx`.
+ */
+
 'use client'
 
 import React from 'react'
@@ -36,6 +51,7 @@ interface MeetingDetailModalProps {
 }
 
 const MeetingDetailModal = ({ meeting, open, onOpenChange }: MeetingDetailModalProps) => {
+
     if (!meeting) return null
 
     return (

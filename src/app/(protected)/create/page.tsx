@@ -1,3 +1,22 @@
+/**
+ * @file src/app/(protected)/create/page.tsx
+ * @description Frontend project ingestion configure screen.
+ * 
+ * WHY IT'S NEEDED:
+ * Facilitates the connection form letting developers link their GitHub repositories,
+ * specify private authentication tokens, and create local indexing settings.
+ * 
+ * FLOW OF EXECUTION:
+ * 1. Collects inputs via `react-hook-form`.
+ * 2. onSubmit calls `createProject.mutate` passing names, repos, and tokens.
+ * 3. onSuccess invalidates active state queries, sets the current project ID in storage,
+ *    and redirects to the main dashboard.
+ * 
+ * CONNECTIONS:
+ * - Invokes tRPC procedure `createProject` in `src/server/api/routers/project.ts`.
+ * - Updates local storage tracking in `src/hooks/use-project.ts`.
+ */
+
 "use client"
 
 import { Input } from '@/components/ui/input'
@@ -18,12 +37,21 @@ type FormInput = {
 }
 
 const CreatePage = () => {
+    // 1. Initialize react-hook-form context
     const { register, handleSubmit, reset } = useForm<FormInput>()
+    // tRPC mutation to register project
     const createProject = api.project.createProject.useMutation()
+    // Query invalidation helper hook
     const refetch = userefetch()
+    // Local storage active ID mutator hook
     const { setProjectid } = useProject()
+    // Next.js client router
     const router = useRouter()
 
+    /**
+     * Form submit callback handler.
+     * @param data Validated form input fields
+     */
     function onSubmit(data: FormInput) {
         createProject.mutate({
             githubUrl: data.repoUrl,
@@ -32,8 +60,11 @@ const CreatePage = () => {
         }, {
             onSuccess: async (project) => {
                 toast.success("Project created successfully")
+                // Invalidate query caches to pull new list state
                 await refetch()
+                // Cache selected project id
                 setProjectid(project.id)
+                // Redirect back to dashboard
                 router.push('/dashboard')
                 reset()
             },
@@ -42,6 +73,7 @@ const CreatePage = () => {
             }
         })
     }
+
 
     return (
         <div className='flex flex-col md:flex-row items-center justify-center gap-12 min-h-[calc(100vh-10rem)] px-4 py-8 max-w-5xl mx-auto'>
