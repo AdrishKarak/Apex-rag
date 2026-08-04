@@ -132,6 +132,29 @@ graph TD
 
    Open [http://localhost:3000](http://localhost:3000) in your browser.
 
+### 🐳 Running with Docker (Recommended for Production)
+
+Run the full application stack (Next.js web app + PostgreSQL database with `pgvector`) with a single Docker command:
+
+1. **Configure Environment Variables**:
+   Ensure `.env` contains your required keys:
+   ```bash
+   cp .env.example .env
+   ```
+
+2. **Start Containers**:
+   ```bash
+   docker compose up --build -d
+   ```
+
+3. **Access Application**:
+   Open [http://localhost:3000](http://localhost:3000) in your browser.
+
+4. **Stop Containers**:
+   ```bash
+   docker compose down
+   ```
+
 ---
 
 ## 💳 Credit Economics

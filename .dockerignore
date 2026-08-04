@@ -1,0 +1,21 @@
+# Node.js / Next.js dockerignore
+node_modules
+.next
+.git
+.gitignore
+.env
+.env*.local
+.env.production
+.env.development
+Dockerfile*
+docker-compose*
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+README.md
+Architecture.md
+Diagram.md
+learning-journal.md
+ui.md
+Assembliai.md
