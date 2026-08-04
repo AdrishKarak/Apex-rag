@@ -72,7 +72,7 @@ const MeetingCard = () => {
 
     return (
         <Card
-            className={`relative col-span-2 flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl transition-all duration-200 overflow-hidden cursor-pointer shadow-xs group ${isDragActive
+            className={`relative col-span-1 sm:col-span-2 flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl transition-all duration-200 overflow-hidden cursor-pointer shadow-xs group ${isDragActive
                 ? 'border-zinc-900 dark:border-zinc-100 bg-zinc-100/80 dark:bg-zinc-800/50 scale-[1.01]'
                 : 'border-zinc-200 dark:border-zinc-800 hover:border-zinc-400 dark:hover:border-zinc-600 hover:bg-zinc-50/50 dark:hover:bg-zinc-900/30'
                 }`}

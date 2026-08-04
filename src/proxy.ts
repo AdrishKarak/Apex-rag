@@ -1,14 +1,22 @@
 import { clerkMiddleware } from '@clerk/nextjs/server';
+import { NextResponse } from 'next/server';
 
 export default clerkMiddleware(async (auth, req) => {
     const { pathname } = req.nextUrl;
     
-    // Only /sign-in and /sign-up are public routes
-    const isPublic = pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up');
+    // Keep the marketing homepage and auth routes public.
+    const isPublic = pathname === '/' || pathname.startsWith('/sign-in') || pathname.startsWith('/sign-up');
     
     if (!isPublic) {
         await auth.protect();
     }
+
+    const response = NextResponse.next();
+    response.headers.set('X-Frame-Options', 'DENY');
+    response.headers.set('X-Content-Type-Options', 'nosniff');
+    response.headers.set('Referrer-Policy', 'strict-origin-when-cross-origin');
+    response.headers.set('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+    return response;
 });
 
 export const config = {

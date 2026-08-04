@@ -21,11 +21,22 @@ model User {
     createdAt    DateTime @default(now())
     updatedAt    DateTime @updatedAt
 
-    credits        Int             @default(150)
-    userToProjects UserToProject[]
-    questionsAsked Question[]
+    credits            Int                 @default(150)
+    userToProjects     UserToProject[]
+    questionsAsked     Question[]
+    creditTransactions CreditTransaction[]
 
     @@index([emailAddress])
+}
+
+model CreditTransaction {
+    id        String   @id @default(cuid())
+    createdAt DateTime @default(now())
+    amount    Int
+    userId    String
+    user      User     @relation(fields: [userId], references: [id])
+
+    @@index([userId, createdAt])
 }
 
 model Project {
@@ -37,6 +48,7 @@ model Project {
     githubUrl   String
     githubToken String?
     isIndexing  Boolean @default(true)
+    inviteCode  String?  @unique @default(cuid())
 
     deletedAt            DateTime?
     userToProjects       UserToProject[]
@@ -53,6 +65,7 @@ model UserToProject {
 
     userId    String
     projectId String
+    role      String  @default("MEMBER")
     user      User    @relation(fields: [userId], references: [id])
     project   Project @relation(fields: [projectId], references: [id])
 

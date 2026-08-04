@@ -69,7 +69,7 @@ async function retryWithBackoff<T>(fn: () => Promise<T>, retries = 10, delay = 2
 /**
  * Summarize a file's code content for onboarding description context using Groq.
  */
-export async function summariseCode(doc: Document): Promise<string> {
+export async function summariseCodeGroq(doc: Document): Promise<string> {
     try {
         const code = doc.pageContent.slice(0, 5000); // Limit to 5k characters to stay within context and lower Token usage (TPM)
         const fileName = doc.metadata.source || "unknown";
@@ -91,6 +91,8 @@ export async function summariseCode(doc: Document): Promise<string> {
         return "";
     }
 }
+
+export const summariseCode = summariseCodeGroq;
 
 /**
  * Summarize a git diff commit message for log history using Groq.

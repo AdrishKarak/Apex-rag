@@ -69,8 +69,9 @@ const AskQuestionCard = () => {
                     setAnswer((ans) => ans + delta);
                 }
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error asking question:", error);
+            toast.error(error?.message || "Failed to ask question");
         } finally {
             setLoading(false);
             setStreaming(false);
@@ -200,7 +201,7 @@ const AskQuestionCard = () => {
                 </DialogContent>
             </Dialog>
 
-            <Card className="relative col-span-3 overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-xs">
+            <Card className="relative col-span-1 sm:col-span-3 overflow-hidden border border-zinc-200 dark:border-zinc-800 shadow-xs">
                 {/* Visual Accent top border */}
                 <div className="absolute top-0 inset-x-0 h-0.5 bg-zinc-200 dark:bg-zinc-800" />
                 <CardHeader className="pb-3">

@@ -1,7 +1,7 @@
 import "@/styles/globals.css";
 
 import { type Metadata } from "next";
-import { Ubuntu } from "next/font/google";
+import { Geist, Geist_Mono } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 
 import { TRPCReactProvider } from "@/trpc/react";
@@ -13,10 +13,14 @@ export const metadata: Metadata = {
   icons: [{ rel: "icon", url: "/logo.svg" }],
 };
 
-const ubuntu = Ubuntu({
+const geist = Geist({
   subsets: ["latin"],
-  weight: ["300", "400", "500", "700"],
-  variable: "--font-ubuntu",
+  variable: "--font-geist",
+});
+
+const geistMono = Geist_Mono({
+  subsets: ["latin"],
+  variable: "--font-geist-mono",
 });
 
 export default function RootLayout({
@@ -24,7 +28,7 @@ export default function RootLayout({
 }: Readonly<{ children: React.ReactNode }>) {
   return (
     <ClerkProvider>
-      <html lang="en" className={`${ubuntu.variable}`}>
+      <html lang="en" className={`${geist.variable} ${geistMono.variable}`}>
         <body className="font-sans antialiased">
           <TRPCReactProvider>{children}</TRPCReactProvider>
           <Toaster richColors />

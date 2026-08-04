@@ -91,7 +91,7 @@ It is given only as an example of appropriate comments.`
     }
 }
 
-export async function summariseCode(doc: Document) {
+export async function summariseCodeGemini(doc: Document): Promise<string> {
     try {
         const code = doc.pageContent.slice(0, 10000); // Limit to 10000 characters
         const response = await retryWithBackoff(() => ai.models.generateContent({
@@ -120,6 +120,8 @@ Give a summary no more than 100 words of the code above.`
         return "";
     }
 }
+
+export const summariseCode = summariseCodeGemini;
 
 export async function generateEmbedding(summary: string) {
     // Avoid API crash (400) if summary text is empty

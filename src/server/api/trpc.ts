@@ -12,6 +12,7 @@ import { ZodError } from "zod";
 
 import { db } from "@/server/db";
 import { auth, clerkClient } from "@clerk/nextjs/server";
+import { rateLimiter } from "@/lib/rate-limit";
 
 /**
  * 1. CONTEXT
@@ -99,7 +100,9 @@ const isAuthenticated = t.middleware(async ({ next, ctx }) => {
     // Slow path: User is missing from local DB, fetch from Clerk and sync
     const client = await clerkClient();
     const clerkUser = await client.users.getUser(user.userId);
-    const emailAddress = clerkUser.emailAddresses[0]?.emailAddress;
+    const emailAddress =
+      clerkUser.emailAddresses.find((e) => e.id === clerkUser.primaryEmailAddressId)
+        ?.emailAddress ?? clerkUser.emailAddresses[0]?.emailAddress;
 
     if (!emailAddress) {
       throw new TRPCError({
@@ -123,19 +126,30 @@ const isAuthenticated = t.middleware(async ({ next, ctx }) => {
         },
       });
     } else if (dbUser.id !== user.userId) {
-      // Delete old record with mismatched ID to avoid unique constraints
-      await ctx.db.user.delete({
-        where: { id: dbUser.id },
-      });
-      dbUser = await ctx.db.user.create({
-        data: {
-          id: user.userId,
-          emailAddress,
-          firstName: clerkUser.firstName,
-          lastName: clerkUser.lastName,
-          imageUrl: clerkUser.imageUrl,
-        },
-      });
+      try {
+        dbUser = await ctx.db.user.update({
+          where: { emailAddress },
+          data: {
+            id: user.userId,
+            firstName: clerkUser.firstName,
+            lastName: clerkUser.lastName,
+            imageUrl: clerkUser.imageUrl,
+          },
+        });
+      } catch {
+        await ctx.db.user.delete({
+          where: { id: dbUser.id },
+        });
+        dbUser = await ctx.db.user.create({
+          data: {
+            id: user.userId,
+            emailAddress,
+            firstName: clerkUser.firstName,
+            lastName: clerkUser.lastName,
+            imageUrl: clerkUser.imageUrl,
+          },
+        });
+      }
     }
   }
 
@@ -148,8 +162,6 @@ const isAuthenticated = t.middleware(async ({ next, ctx }) => {
   })
 })
 
-
-
 const timingMiddleware = t.middleware(async ({ next, path }) => {
   const start = Date.now();
 
@@ -161,6 +173,26 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
   return result;
 });
 
+const rateLimitMiddleware = t.middleware(async ({ next, ctx, path, type }) => {
+  const clientIp = ctx.headers.get("x-forwarded-for")?.split(",")[0] ?? "unknown-ip";
+  const authUser = await auth();
+  const identifier = authUser?.userId ? `user:${authUser.userId}` : `ip:${clientIp}`;
+  
+  // Stricter rate limits for mutations (15 req/min), standard for queries (120 req/min)
+  const limit = type === "mutation" ? 15 : 120;
+  const windowMs = 60 * 1000;
+
+  const rateCheck = rateLimiter.check(`${identifier}:${path}`, limit, windowMs);
+  if (!rateCheck.success) {
+    throw new TRPCError({
+      code: "TOO_MANY_REQUESTS",
+      message: `Rate limit exceeded for ${path}. Please try again in ${Math.ceil(rateCheck.resetMs / 1000)} seconds.`,
+    });
+  }
+
+  return next();
+});
+
 /**
  * Public (unauthenticated) procedure
  *
@@ -168,5 +200,6 @@ const timingMiddleware = t.middleware(async ({ next, path }) => {
  * guarantee that a user querying is authorized, but you can still access user session data if they
  * are logged in.
  */
-export const publicProcedure = t.procedure.use(timingMiddleware);
-export const protectedProcedure = t.procedure.use(isAuthenticated)
+export const publicProcedure = t.procedure.use(timingMiddleware).use(rateLimitMiddleware);
+export const protectedProcedure = t.procedure.use(isAuthenticated).use(timingMiddleware).use(rateLimitMiddleware);
+

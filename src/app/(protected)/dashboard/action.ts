@@ -4,13 +4,29 @@ import { createStreamableValue } from '@ai-sdk/rsc'
 import { createGroq } from "@ai-sdk/groq"
 import { generateEmbedding } from "@/lib/gemini";
 import { db } from "@/server/db";
-
+import { auth } from "@clerk/nextjs/server";
 
 const groq = createGroq({
     apiKey: process.env.GROQ_API_KEY,
 });
 
 export async function askQuestion(question: string, projectId: string) {
+    const { userId } = await auth();
+    if (!userId) {
+        throw new Error("Unauthorized");
+    }
+
+    const user = await db.user.findUnique({ where: { id: userId } });
+    if (!user || user.credits < 10) {
+        throw new Error(`Insufficient credits: You need 10 credits to ask a question. You currently have ${user?.credits ?? 0} credits. Please top up on the Billing page.`);
+    }
+
+    // Deduct 10 credits
+    await db.user.update({
+        where: { id: userId },
+        data: { credits: { decrement: 10 } }
+    });
+
     const stream = createStreamableValue()
 
     const queryVector = await generateEmbedding(question)
