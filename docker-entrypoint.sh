@@ -1,6 +1,8 @@
 #!/bin/sh
 set -e
 
+export DATABASE_URL="${DATABASE_URL:-postgresql://postgres:password@db:5432/github-rag}"
+
 echo "==> Initializing PostgreSQL Database Schema via Prisma..."
 max_retries=30
 count=0
